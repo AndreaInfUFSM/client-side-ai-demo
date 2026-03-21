@@ -1,0 +1,687 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Recorte simples de fundo</title>
+  <style>
+    :root {
+      --bg: #f7f7f5;
+      --surface: #ffffff;
+      --surface-soft: #f2f2ef;
+      --text: #161616;
+      --muted: #666666;
+      --border: #e6e6e1;
+      --accent: #111111;
+      --accent-2: #faf7f2;
+      --accent-3: #f1ede7;
+      --shadow: 0 10px 30px rgba(0, 0, 0, 0.06);
+      --radius-xl: 28px;
+      --radius-lg: 20px;
+      --radius-md: 16px;
+    }
+
+    * {
+      box-sizing: border-box;
+    }
+
+    body {
+      margin: 0;
+      font-family: Inter, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      background: var(--bg);
+      color: var(--text);
+    }
+
+    .app {
+      max-width: 1120px;
+      margin: 0 auto;
+      padding: 32px 16px 48px;
+    }
+
+    .header {
+      margin-bottom: 24px;
+    }
+
+    .header h1 {
+      margin: 0;
+      font-size: 2rem;
+      line-height: 1.1;
+      letter-spacing: -0.03em;
+    }
+
+    .header p {
+      max-width: 700px;
+      margin: 10px 0 0;
+      color: var(--muted);
+      font-size: 0.96rem;
+      line-height: 1.5;
+    }
+
+    .layout {
+      display: grid;
+      gap: 24px;
+      grid-template-columns: 1.1fr 0.9fr;
+    }
+
+    .card {
+      background: var(--surface);
+      border-radius: var(--radius-xl);
+      box-shadow: var(--shadow);
+      padding: 24px;
+    }
+
+    .card h2 {
+      margin: 0 0 18px;
+      font-size: 1.1rem;
+    }
+
+    .steps {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 12px;
+      margin-bottom: 20px;
+    }
+
+    .step-box {
+      border: 1px solid var(--border);
+      border-radius: var(--radius-md);
+      padding: 14px;
+      background: var(--surface);
+      transition: 0.2s ease;
+    }
+
+    .step-box.active {
+      background: var(--accent);
+      color: white;
+      border-color: var(--accent);
+    }
+
+    .step-box.done:not(.active) {
+      background: var(--surface-soft);
+    }
+
+    .step-label {
+      font-size: 0.72rem;
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+      opacity: 0.72;
+    }
+
+    .step-title {
+      margin-top: 6px;
+      font-size: 0.95rem;
+      font-weight: 600;
+    }
+
+    .actions {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 12px;
+      margin-bottom: 20px;
+    }
+
+    button,
+    .download-link {
+      appearance: none;
+      border: 1px solid transparent;
+      border-radius: 18px;
+      padding: 12px 16px;
+      font: inherit;
+      font-size: 0.95rem;
+      cursor: pointer;
+      text-decoration: none;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      transition: 0.2s ease;
+    }
+
+    button.primary {
+      background: var(--accent);
+      color: white;
+    }
+
+    button.primary:hover:not(:disabled) {
+      opacity: 0.94;
+    }
+
+    button.secondary,
+    .download-link {
+      background: var(--surface);
+      border-color: var(--border);
+      color: var(--text);
+    }
+
+    button.ghost {
+      background: transparent;
+      color: var(--text);
+    }
+
+    button:disabled {
+      opacity: 0.55;
+      cursor: not-allowed;
+    }
+
+    .preview-area {
+      border: 1px dashed var(--border);
+      border-radius: var(--radius-lg);
+      background: var(--surface);
+      padding: 16px;
+      min-height: 320px;
+    }
+
+    .empty-state {
+      min-height: 286px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      text-align: center;
+      background: var(--bg);
+      border-radius: var(--radius-lg);
+      color: var(--muted);
+      padding: 24px;
+    }
+
+    .preview-grid {
+      display: grid;
+      gap: 16px;
+      grid-template-columns: repeat(2, 1fr);
+    }
+
+    .preview-card p {
+      margin: 0 0 10px;
+      font-size: 0.92rem;
+      font-weight: 600;
+      color: #444;
+    }
+
+    .preview-frame {
+      overflow: hidden;
+      border-radius: var(--radius-lg);
+      border: 1px solid var(--border);
+      background: var(--bg);
+      height: 280px;
+    }
+
+    .preview-frame img {
+      width: 100%;
+      height: 100%;
+      object-fit: contain;
+      display: block;
+    }
+
+    .section {
+      margin-bottom: 22px;
+    }
+
+    .section-title {
+      margin: 0 0 10px;
+      font-size: 0.95rem;
+      font-weight: 600;
+    }
+
+    .panel {
+      background: var(--bg);
+      border-radius: var(--radius-lg);
+      padding: 16px;
+    }
+
+    .range-row,
+    .info-row {
+      display: flex;
+      justify-content: space-between;
+      gap: 16px;
+      font-size: 0.92rem;
+      color: var(--muted);
+      margin-bottom: 10px;
+    }
+
+    input[type="range"] {
+      width: 100%;
+    }
+
+    .mode-list {
+      display: grid;
+      gap: 10px;
+    }
+
+    .mode-btn {
+      width: 100%;
+      justify-content: flex-start;
+      border-color: var(--border);
+      background: var(--surface);
+    }
+
+    .mode-btn.active {
+      background: var(--accent);
+      color: white;
+      border-color: var(--accent);
+    }
+
+    .full-width {
+      width: 100%;
+    }
+
+    .status,
+    .notice {
+      border-radius: var(--radius-lg);
+      padding: 14px 16px;
+      font-size: 0.92rem;
+      line-height: 1.45;
+    }
+
+    .status {
+      border: 1px solid var(--border);
+      color: var(--muted);
+      background: var(--surface);
+    }
+
+    .notice {
+      background: #fff6df;
+      color: #6b5211;
+      border: 1px solid #f1dfab;
+    }
+
+    .hidden {
+      display: none !important;
+    }
+
+    canvas {
+      display: none;
+    }
+
+    @media (max-width: 900px) {
+      .layout {
+        grid-template-columns: 1fr;
+      }
+    }
+
+    @media (max-width: 640px) {
+      .steps,
+      .preview-grid {
+        grid-template-columns: 1fr;
+      }
+
+      .app {
+        padding-left: 12px;
+        padding-right: 12px;
+      }
+
+      .card {
+        padding: 18px;
+      }
+    }
+  </style>
+</head>
+<body>
+  <main class="app">
+    <header class="header">
+      <h1>Recorte simples de fundo</h1>
+
+    </header>
+
+    <section class="layout">
+      <div class="card">
+        <h2>Fluxo</h2>
+
+        <div class="steps">
+          <div class="step-box active" id="step-1-box">
+            <div class="step-label">Etapa 1</div>
+            <div class="step-title">Escolher foto</div>
+          </div>
+          <div class="step-box" id="step-2-box">
+            <div class="step-label">Etapa 2</div>
+            <div class="step-title">Ajustar saída</div>
+          </div>
+          <div class="step-box" id="step-3-box">
+            <div class="step-label">Etapa 3</div>
+            <div class="step-title">Baixar</div>
+          </div>
+        </div>
+
+        <div class="actions">
+          <button class="primary" id="uploadBtn" type="button">Enviar imagem</button>
+          <button class="secondary" id="cameraBtn" type="button">Abrir câmera</button>
+          <button class="ghost" id="restartBtn" type="button">Recomeçar</button>
+        </div>
+
+        <input id="fileInput" class="hidden" type="file" accept="image/*" />
+        <input id="cameraInput" class="hidden" type="file" accept="image/*" capture="environment" />
+
+        <div class="preview-area">
+          <div class="empty-state" id="emptyState">
+            <div>
+              <p style="margin: 0 0 8px; font-size: 1rem; color: var(--text);">Nenhuma imagem selecionada</p>
+              <p style="margin: 0;">Escolha uma foto da galeria ou abra a câmera do celular.</p>
+            </div>
+          </div>
+
+          <div class="preview-grid hidden" id="previewGrid">
+            <div class="preview-card">
+              <p>Original</p>
+              <div class="preview-frame">
+                <img id="originalPreview" alt="Imagem original" />
+              </div>
+            </div>
+            <div class="preview-card">
+              <p>Resultado</p>
+              <div class="preview-frame">
+                <img id="resultPreview" alt="Imagem processada" />
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="card">
+        <h2>Ajustes</h2>
+
+        <div class="section">
+          <p class="section-title">1. Redimensionar</p>
+          <div class="panel">
+            <div class="range-row">
+              <span>Tamanho de saída</span>
+              <span id="scaleValue">65%</span>
+            </div>
+            <input id="scaleRange" type="range" min="25" max="100" step="5" value="65" />
+          </div>
+        </div>
+
+        <div class="section">
+          <p class="section-title">2. Fundo</p>
+          <div class="mode-list">
+            <button class="mode-btn active" type="button" data-mode="transparent">Transparente</button>
+            <button class="mode-btn" type="button" data-mode="white">Branco</button>
+            <button class="mode-btn" type="button" data-mode="soft">Suave</button>
+          </div>
+        </div>
+
+        <div class="section">
+          <p class="section-title">3. Exportar</p>
+          <div class="panel">
+            <div class="info-row">
+              <span>Formato</span>
+              <span id="formatLabel">PNG transparente</span>
+            </div>
+            <div class="info-row" style="margin-bottom: 0;">
+              <span>Nome sugerido</span>
+              <span id="filenameLabel">produto-catalogo</span>
+            </div>
+          </div>
+        </div>
+
+        <div class="section">
+          <button class="primary full-width" id="processBtn" type="button" disabled>Processar imagem</button>
+        </div>
+
+        <div class="section hidden" id="downloadWrap">
+          <a class="download-link full-width" id="downloadLink" href="#" download>Baixar arquivo</a>
+        </div>
+
+        <div class="section">
+          <div class="status" id="statusBox">Nenhuma imagem selecionada.</div>
+        </div>
+
+        <div class="notice">
+          Esta versão usa remoção de fundo client-side com <code>@imgly/background-removal</code>.
+          É uma boa opção para fotos de produtos, mas o primeiro processamento pode ser pesado em celulares modestos,
+          porque o navegador precisa baixar recursos do modelo. 
+        </div>
+      </div>
+    </section>
+
+    <canvas id="workCanvas"></canvas>
+  </main>
+
+  <script type="module">
+    import { removeBackground } from 'https://cdn.jsdelivr.net/npm/@imgly/background-removal@1.7.0/+esm';
+    // import removeBackground from 'https://cdn.jsdelivr.net/npm/@imgly/background-removal@1.7.0/+esm';
+
+    const fileInput = document.getElementById('fileInput');
+    const cameraInput = document.getElementById('cameraInput');
+    const uploadBtn = document.getElementById('uploadBtn');
+    const cameraBtn = document.getElementById('cameraBtn');
+    const restartBtn = document.getElementById('restartBtn');
+    const processBtn = document.getElementById('processBtn');
+    const scaleRange = document.getElementById('scaleRange');
+    const scaleValue = document.getElementById('scaleValue');
+    const formatLabel = document.getElementById('formatLabel');
+    const filenameLabel = document.getElementById('filenameLabel');
+    const statusBox = document.getElementById('statusBox');
+    const emptyState = document.getElementById('emptyState');
+    const previewGrid = document.getElementById('previewGrid');
+    const originalPreview = document.getElementById('originalPreview');
+    const resultPreview = document.getElementById('resultPreview');
+    const downloadWrap = document.getElementById('downloadWrap');
+    const downloadLink = document.getElementById('downloadLink');
+    const canvas = document.getElementById('workCanvas');
+    const modeButtons = Array.from(document.querySelectorAll('.mode-btn'));
+    const stepBoxes = {
+      1: document.getElementById('step-1-box'),
+      2: document.getElementById('step-2-box'),
+      3: document.getElementById('step-3-box')
+    };
+
+    let step = 1;
+    let sourceUrl = '';
+    let processedUrl = '';
+    let fileBaseName = 'produto';
+    let bgMode = 'transparent';
+    let isProcessing = false;
+
+    const MODEL_OPTIONS = {
+      debug: false,
+      model: 'medium',
+      output: { format: 'image/png', quality: 0.92 },
+      progress: (key, current, total) => {
+        if (!total) {
+          setStatus(`Preparando ${key || 'recursos do modelo'}...`);
+          return;
+        }
+        const percent = Math.round((current / total) * 100);
+        setStatus(`Baixando recursos do modelo: ${percent}%`);
+      }
+    };
+
+    uploadBtn.addEventListener('click', () => fileInput.click());
+    cameraBtn.addEventListener('click', () => cameraInput.click());
+    restartBtn.addEventListener('click', restart);
+    processBtn.addEventListener('click', processImage);
+    fileInput.addEventListener('change', handlePick);
+    cameraInput.addEventListener('change', handlePick);
+
+    scaleRange.addEventListener('input', () => {
+      scaleValue.textContent = scaleRange.value + '%';
+      if (sourceUrl) setStep(2);
+    });
+
+    modeButtons.forEach((button) => {
+      button.addEventListener('click', () => {
+        bgMode = button.dataset.mode;
+        modeButtons.forEach((b) => b.classList.toggle('active', b === button));
+        updateFormatLabel();
+        if (sourceUrl) setStep(2);
+      });
+    });
+
+    function handlePick(event) {
+      const file = event.target.files && event.target.files[0];
+      event.target.value = '';
+      if (!file) return;
+
+      cleanupUrls();
+      sourceUrl = URL.createObjectURL(file);
+      fileBaseName = (file.name || 'produto').replace(/\.[^.]+$/, '') || 'produto';
+      filenameLabel.textContent = fileBaseName + '-catalogo';
+
+      originalPreview.src = sourceUrl;
+      resultPreview.src = sourceUrl;
+
+      emptyState.classList.add('hidden');
+      previewGrid.classList.remove('hidden');
+      downloadWrap.classList.add('hidden');
+      processBtn.disabled = false;
+      processedUrl = '';
+
+      setStep(2);
+      setStatus('Imagem carregada. Pronta para redimensionar e remover o fundo.');
+    }
+
+    function setStep(value) {
+      step = value;
+      Object.entries(stepBoxes).forEach(([key, element]) => {
+        const numericKey = Number(key);
+        element.classList.toggle('active', numericKey === step);
+        element.classList.toggle('done', numericKey < step || (numericKey === 1 && !!sourceUrl) || (numericKey === 2 && !!processedUrl));
+      });
+    }
+
+    function setStatus(message) {
+      statusBox.textContent = message;
+    }
+
+    function updateFormatLabel() {
+      if (bgMode === 'transparent') {
+        formatLabel.textContent = 'PNG transparente';
+      } else if (bgMode === 'white') {
+        formatLabel.textContent = 'JPEG com fundo branco';
+      } else {
+        formatLabel.textContent = 'JPEG com fundo suave';
+      }
+    }
+
+    async function processImage() {
+      if (!sourceUrl || isProcessing) return;
+
+      isProcessing = true;
+      processBtn.disabled = true;
+      processBtn.textContent = 'Processando...';
+      downloadWrap.classList.add('hidden');
+      setStatus('Redimensionando imagem...');
+
+      try {
+        const resizedBlob = await createResizedBlob(sourceUrl, Number(scaleRange.value) / 100);
+
+        setStatus('Removendo fundo no navegador...');
+        const transparentBlob = await removeBackground(resizedBlob, MODEL_OPTIONS);
+
+        setStatus('Preparando exportação...');
+        const finalBlob = await composeFinalOutput(transparentBlob, bgMode);
+
+        if (processedUrl) URL.revokeObjectURL(processedUrl);
+        processedUrl = URL.createObjectURL(finalBlob);
+
+        resultPreview.src = processedUrl;
+        downloadLink.href = processedUrl;
+        downloadLink.download = fileBaseName + '-catalogo.' + (bgMode === 'transparent' ? 'png' : 'jpg');
+        downloadWrap.classList.remove('hidden');
+
+        setStep(3);
+        setStatus('Imagem pronta para download.');
+      } catch (error) {
+        console.error(error);
+        setStatus('Não foi possível processar a imagem. Em alguns navegadores ou celulares, o modelo pode falhar ou ficar pesado demais.');
+      } finally {
+        isProcessing = false;
+        processBtn.disabled = !sourceUrl;
+        processBtn.textContent = 'Processar imagem';
+      }
+    }
+
+    async function createResizedBlob(src, scale) {
+      const img = await loadImage(src);
+      const width = Math.max(320, Math.round(img.width * scale));
+      const height = Math.max(320, Math.round(img.height * scale));
+
+      canvas.width = width;
+      canvas.height = height;
+      const ctx = canvas.getContext('2d');
+      ctx.clearRect(0, 0, width, height);
+      ctx.drawImage(img, 0, 0, width, height);
+
+      return canvasToBlob(canvas, 'image/jpeg', 0.92);
+    }
+
+    async function composeFinalOutput(transparentBlob, mode) {
+      if (mode === 'transparent') {
+        return transparentBlob;
+      }
+
+      const imageUrl = URL.createObjectURL(transparentBlob);
+      try {
+        const img = await loadImage(imageUrl);
+        canvas.width = img.width;
+        canvas.height = img.height;
+        const ctx = canvas.getContext('2d');
+
+        if (mode === 'white') {
+          ctx.fillStyle = '#ffffff';
+          ctx.fillRect(0, 0, canvas.width, canvas.height);
+        } else {
+          const gradient = ctx.createLinearGradient(0, 0, canvas.width, canvas.height);
+          gradient.addColorStop(0, '#faf7f2');
+          gradient.addColorStop(1, '#f1ede7');
+          ctx.fillStyle = gradient;
+          ctx.fillRect(0, 0, canvas.width, canvas.height);
+        }
+
+        ctx.save();
+        ctx.shadowBlur = 18;
+        ctx.shadowColor = 'rgba(0,0,0,0.12)';
+        ctx.drawImage(img, 0, 0);
+        ctx.restore();
+
+        return canvasToBlob(canvas, 'image/jpeg', 0.92);
+      } finally {
+        URL.revokeObjectURL(imageUrl);
+      }
+    }
+
+    function restart() {
+      cleanupUrls();
+      sourceUrl = '';
+      processedUrl = '';
+      fileBaseName = 'produto';
+      originalPreview.removeAttribute('src');
+      resultPreview.removeAttribute('src');
+      emptyState.classList.remove('hidden');
+      previewGrid.classList.add('hidden');
+      downloadWrap.classList.add('hidden');
+      processBtn.disabled = true;
+      filenameLabel.textContent = 'produto-catalogo';
+      scaleRange.value = 65;
+      scaleValue.textContent = '65%';
+      bgMode = 'transparent';
+      modeButtons.forEach((b) => b.classList.toggle('active', b.dataset.mode === 'transparent'));
+      updateFormatLabel();
+      setStep(1);
+      setStatus('Nenhuma imagem selecionada.');
+    }
+
+    function cleanupUrls() {
+      if (sourceUrl) URL.revokeObjectURL(sourceUrl);
+      if (processedUrl) URL.revokeObjectURL(processedUrl);
+    }
+
+    function loadImage(src) {
+      return new Promise((resolve, reject) => {
+        const img = new Image();
+        img.onload = () => resolve(img);
+        img.onerror = reject;
+        img.src = src;
+      });
+    }
+
+    function canvasToBlob(canvasElement, type, quality) {
+      return new Promise((resolve, reject) => {
+        canvasElement.toBlob((blob) => {
+          if (blob) resolve(blob);
+          else reject(new Error('Blob generation failed'));
+        }, type, quality);
+      });
+    }
+
+    updateFormatLabel();
+  </script>
+</body>
+</html>
