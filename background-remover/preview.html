@@ -1,0 +1,560 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Recorte simples de fundo</title>
+  <style>
+    :root {
+      --bg: #f7f7f5;
+      --surface: #ffffff;
+      --surface-soft: #f3f3f0;
+      --text: #171717;
+      --muted: #666;
+      --border: #e6e6e1;
+      --accent: #111;
+      --accent-soft: #f1ede7;
+      --shadow: 0 10px 30px rgba(0, 0, 0, 0.06);
+      --radius-xl: 28px;
+      --radius-lg: 20px;
+      --radius-md: 16px;
+    }
+
+    * {
+      box-sizing: border-box;
+    }
+
+    body {
+      margin: 0;
+      font-family: Inter, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      background: var(--bg);
+      color: var(--text);
+    }
+
+    .app {
+      max-width: 760px;
+      margin: 0 auto;
+      padding: 24px 14px 40px;
+    }
+
+    .topbar {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+      margin-bottom: 18px;
+    }
+
+    .brand {
+      font-size: 0.92rem;
+      color: var(--muted);
+      letter-spacing: 0.02em;
+    }
+
+    .ghost-btn {
+      appearance: none;
+      border: 0;
+      background: transparent;
+      color: var(--muted);
+      font: inherit;
+      font-size: 0.92rem;
+      cursor: pointer;
+      padding: 8px 0;
+    }
+
+    .hero {
+      margin-bottom: 18px;
+    }
+
+    .hero h1 {
+      margin: 0;
+      font-size: 2rem;
+      line-height: 1.05;
+      letter-spacing: -0.035em;
+    }
+
+    .hero p {
+      margin: 10px 0 0;
+      color: var(--muted);
+      line-height: 1.5;
+      font-size: 0.97rem;
+      max-width: 58ch;
+    }
+
+    .flow {
+      display: grid;
+      gap: 16px;
+    }
+
+    .flow-step {
+      background: var(--surface);
+      border-radius: var(--radius-xl);
+      box-shadow: var(--shadow);
+      padding: 18px;
+      border: 1px solid rgba(0,0,0,0.02);
+    }
+
+    .flow-head {
+      display: flex;
+      align-items: flex-start;
+      gap: 14px;
+      margin-bottom: 16px;
+    }
+
+    .flow-circle {
+      width: 40px;
+      height: 40px;
+      border-radius: 999px;
+      background: var(--accent);
+      color: white;
+      display: grid;
+      place-items: center;
+      font-weight: 700;
+      flex: 0 0 auto;
+    }
+
+    .flow-kicker {
+      margin: 0 0 4px;
+      font-size: 0.72rem;
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+      color: var(--muted);
+    }
+
+    .flow-head h2 {
+      margin: 0;
+      font-size: 1.1rem;
+      letter-spacing: -0.02em;
+    }
+
+    .flow-desc {
+      margin: 6px 0 0;
+      color: var(--muted);
+      font-size: 0.93rem;
+      line-height: 1.45;
+    }
+
+    .flow-body {
+      display: grid;
+      gap: 16px;
+    }
+
+    .actions {
+      display: grid;
+      gap: 10px;
+    }
+
+    button,
+    .download-link,
+    .chip,
+    .seg-btn {
+      appearance: none;
+      border: 1px solid transparent;
+      border-radius: 18px;
+      font: inherit;
+      cursor: pointer;
+      transition: 0.18s ease;
+    }
+
+    .btn {
+      min-height: 48px;
+      padding: 12px 16px;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: 10px;
+      text-decoration: none;
+      font-size: 0.96rem;
+      font-weight: 500;
+    }
+
+    .btn-primary {
+      background: var(--accent);
+      color: #fff;
+    }
+
+    .btn-secondary {
+      background: var(--surface);
+      color: var(--text);
+      border-color: var(--border);
+    }
+
+    .btn-soft {
+      background: var(--surface-soft);
+      color: var(--text);
+    }
+
+    .preview-card p,
+    .section-title {
+      margin: 0 0 10px;
+      font-size: 0.92rem;
+      font-weight: 600;
+      color: #444;
+    }
+
+    .preview-frame {
+      height: 270px;
+      border-radius: var(--radius-lg);
+      border: 1px solid var(--border);
+      background:
+        linear-gradient(45deg, #f3f3f3 25%, transparent 25%),
+        linear-gradient(-45deg, #f3f3f3 25%, transparent 25%),
+        linear-gradient(45deg, transparent 75%, #f3f3f3 75%),
+        linear-gradient(-45deg, transparent 75%, #f3f3f3 75%);
+      background-size: 24px 24px;
+      background-position: 0 0, 0 12px, 12px -12px, -12px 0;
+      overflow: hidden;
+      position: relative;
+    }
+
+    .preview-inner {
+      position: absolute;
+      inset: 0;
+      display: grid;
+      place-items: center;
+      background: rgba(255,255,255,0.32);
+      padding: 14px;
+    }
+
+    .mock-photo {
+      width: 78%;
+      max-width: 260px;
+      aspect-ratio: 1 / 1;
+      border-radius: 26px;
+      background: linear-gradient(160deg, #d8cbbf 0%, #c3b09c 52%, #9a7f67 100%);
+      box-shadow: 0 18px 30px rgba(0,0,0,0.14);
+      position: relative;
+    }
+
+    .mock-photo::before {
+      content: "";
+      position: absolute;
+      width: 42%;
+      height: 42%;
+      border-radius: 18px;
+      background: rgba(255,255,255,0.32);
+      top: 14%;
+      left: 14%;
+    }
+
+    .mock-photo::after {
+      content: "";
+      position: absolute;
+      width: 22%;
+      height: 22%;
+      border-radius: 999px;
+      background: rgba(255,255,255,0.2);
+      right: 14%;
+      bottom: 16%;
+    }
+
+    .empty-state {
+      border-radius: var(--radius-lg);
+      background: var(--surface-soft);
+      min-height: 120px;
+      display: grid;
+      place-items: center;
+      text-align: center;
+      padding: 20px;
+      color: var(--muted);
+      font-size: 0.95rem;
+      line-height: 1.45;
+    }
+
+    .section {
+      display: grid;
+      gap: 10px;
+    }
+
+    .panel {
+      background: var(--surface-soft);
+      border-radius: var(--radius-lg);
+      padding: 14px;
+    }
+
+    .range-row,
+    .info-row {
+      display: flex;
+      justify-content: space-between;
+      gap: 12px;
+      font-size: 0.93rem;
+      color: var(--muted);
+    }
+
+    .range-row {
+      margin-bottom: 12px;
+    }
+
+    input[type="range"] {
+      width: 100%;
+      accent-color: #111;
+    }
+
+    .segment {
+      display: grid;
+      gap: 10px;
+    }
+
+    .seg-btn {
+      min-height: 46px;
+      padding: 10px 14px;
+      text-align: left;
+      background: var(--surface);
+      border-color: var(--border);
+      color: var(--text);
+    }
+
+    .seg-btn.active {
+      background: var(--accent);
+      color: #fff;
+      border-color: var(--accent);
+    }
+
+    .chips {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+    }
+
+    .chip {
+      padding: 8px 12px;
+      background: var(--surface-soft);
+      border-color: var(--border);
+      color: var(--text);
+      font-size: 0.88rem;
+    }
+
+    .status {
+      border-radius: var(--radius-lg);
+      border: 1px solid var(--border);
+      background: var(--surface);
+      padding: 14px;
+      color: var(--muted);
+      font-size: 0.93rem;
+      line-height: 1.45;
+    }
+
+    .download-link {
+      min-height: 48px;
+      padding: 12px 16px;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      text-decoration: none;
+      background: var(--accent);
+      color: white;
+      width: 100%;
+      font-weight: 500;
+    }
+
+    .step-footer {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 12px;
+      flex-wrap: wrap;
+    }
+
+    .divider {
+      height: 1px;
+      background: var(--border);
+      margin: 2px 0;
+    }
+
+    .result-frame {
+      height: 290px;
+      border-radius: var(--radius-lg);
+      overflow: hidden;
+      border: 1px solid var(--border);
+      background: linear-gradient(180deg, #faf7f2, #f1ede7);
+      position: relative;
+    }
+
+    .result-frame .preview-inner {
+      background: transparent;
+    }
+
+    .compare-toggle {
+      display: inline-flex;
+      gap: 6px;
+      padding: 4px;
+      background: var(--surface-soft);
+      border-radius: 999px;
+      align-self: start;
+    }
+
+    .compare-toggle span {
+      padding: 8px 12px;
+      border-radius: 999px;
+      font-size: 0.84rem;
+      color: var(--muted);
+    }
+
+    .compare-toggle .active {
+      background: var(--surface);
+      color: var(--text);
+      box-shadow: 0 2px 8px rgba(0,0,0,0.04);
+    }
+
+    .hidden-inputs {
+      display: none;
+    }
+
+    @media (min-width: 700px) {
+      .actions {
+        grid-template-columns: 1fr 1fr auto;
+      }
+
+      .step-footer {
+        flex-wrap: nowrap;
+      }
+    }
+  </style>
+</head>
+<body>
+  <main class="app">
+    <div class="topbar">
+      <div class="brand">Recorte simples de fundo</div>
+      <button class="ghost-btn" type="button">Recomeçar</button>
+    </div>
+
+    <header class="hero">
+      <h1>Preparar foto do produto</h1>
+      <p>
+        Escolha a imagem, ajuste as opções e baixe o resultado.
+      </p>
+    </header>
+
+    <div class="flow">
+      <section class="flow-step" id="step-1">
+        <div class="flow-head">
+          <div class="flow-circle">1</div>
+          <div>
+            <p class="flow-kicker">Etapa 1</p>
+            <h2>Escolher foto</h2>
+            <p class="flow-desc">Abra a câmera ou envie uma imagem existente.</p>
+          </div>
+        </div>
+
+        <div class="flow-body">
+          <div class="actions">
+            <button class="btn btn-primary" type="button">Enviar imagem</button>
+            <button class="btn btn-secondary" type="button">Abrir câmera</button>
+            <button class="btn btn-soft" type="button">Exemplo</button>
+          </div>
+
+          <div class="preview-card">
+            <p>Original</p>
+            <div class="preview-frame">
+              <div class="preview-inner">
+                <div class="mock-photo"></div>
+              </div>
+            </div>
+          </div>
+
+          <div class="status">Imagem carregada. Ajuste as opções abaixo.</div>
+        </div>
+      </section>
+
+      <section class="flow-step" id="step-2">
+        <div class="flow-head">
+          <div class="flow-circle">2</div>
+          <div>
+            <p class="flow-kicker">Etapa 2</p>
+            <h2>Ajustar e processar</h2>
+            <p class="flow-desc">Defina as opções antes de processar a imagem.</p>
+          </div>
+        </div>
+
+        <div class="flow-body">
+          <div class="section">
+            <p class="section-title">Tamanho da saída</p>
+            <div class="panel">
+              <div class="range-row">
+                <span>Redimensionar antes do processamento</span>
+                <span>65%</span>
+              </div>
+              <input type="range" min="25" max="100" step="5" value="65" />
+            </div>
+          </div>
+
+          <div class="section">
+            <p class="section-title">Fundo após recorte</p>
+            <div class="segment">
+              <button class="seg-btn active" type="button">Transparente</button>
+              <button class="seg-btn" type="button">Branco</button>
+              <button class="seg-btn" type="button">Suave</button>
+            </div>
+          </div>
+
+          <div class="section">
+            <p class="section-title">Saída</p>
+            <div class="panel">
+              <div class="info-row">
+                <span>Formato</span>
+                <span>PNG transparente</span>
+              </div>
+              <div class="divider"></div>
+              <div class="info-row">
+                <span>Nome sugerido</span>
+                <span>produto-catalogo</span>
+              </div>
+            </div>
+          </div>
+
+          <div class="section">
+            <p class="section-title">Predefinições</p>
+            <div class="chips">
+              <button class="chip" type="button">quadrado</button>
+              <button class="chip" type="button">instagram</button>
+              <button class="chip" type="button">catálogo</button>
+            </div>
+          </div>
+
+          <div class="step-footer">
+            <button class="btn btn-primary" type="button" style="flex: 1;">Processar imagem</button>
+          </div>
+
+          <div class="status">Imagem pronta para processamento.</div>
+        </div>
+      </section>
+
+      <section class="flow-step" id="step-3">
+        <div class="flow-head">
+          <div class="flow-circle">3</div>
+          <div>
+            <p class="flow-kicker">Etapa 3</p>
+            <h2>Baixar resultado</h2>
+            <p class="flow-desc">Visualize o resultado e baixe o arquivo.</p>
+          </div>
+        </div>
+
+        <div class="flow-body">
+          <div class="compare-toggle" aria-hidden="true">
+            <span>Original</span>
+            <span class="active">Resultado</span>
+          </div>
+
+          <div class="preview-card">
+            <p>Resultado</p>
+            <div class="result-frame">
+              <div class="preview-inner">
+                <div class="mock-photo" style="background: linear-gradient(160deg, #d4c4b4 0%, #c3b09c 52%, #a08165 100%);"></div>
+              </div>
+            </div>
+          </div>
+
+          <a class="download-link" href="#">Baixar arquivo</a>
+        </div>
+      </section>
+    </div>
+
+    <div class="hidden-inputs" aria-hidden="true">
+      <input type="file" accept="image/*" />
+      <input type="file" accept="image/*" capture="environment" />
+    </div>
+
+    
+  </main>
+</body>
+</html>

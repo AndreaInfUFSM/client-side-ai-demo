@@ -1,0 +1,405 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Artisan Image Tagger</title>
+  <style>
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      font-family: Arial, Helvetica, sans-serif;
+      background: #f5f5f2;
+      color: #222;
+    }
+    .wrap {
+      max-width: 820px;
+      margin: 0 auto;
+      padding: 20px;
+    }
+    .card {
+      background: #fff;
+      border-radius: 14px;
+      padding: 18px;
+      box-shadow: 0 2px 14px rgba(0,0,0,0.06);
+      margin-bottom: 18px;
+    }
+    h1, h2, h3 { margin-top: 0; }
+    .muted { color: #666; }
+    .row {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 16px;
+    }
+    @media (max-width: 760px) {
+      .row { grid-template-columns: 1fr; }
+    }
+    .preview {
+      min-height: 280px;
+      border: 2px dashed #d8d8d8;
+      border-radius: 12px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      overflow: hidden;
+      background: #fafafa;
+    }
+    .preview img {
+      max-width: 100%;
+      max-height: 420px;
+      display: none;
+    }
+    .placeholder {
+      padding: 20px;
+      text-align: center;
+      color: #777;
+    }
+    .controls {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 10px;
+      margin-top: 12px;
+    }
+    button, input[type="file"] {
+      font: inherit;
+    }
+    button {
+      border: 0;
+      border-radius: 10px;
+      padding: 11px 14px;
+      background: #202020;
+      color: white;
+      cursor: pointer;
+    }
+    button:disabled {
+      opacity: 0.5;
+      cursor: not-allowed;
+    }
+    textarea {
+      width: 100%;
+      min-height: 96px;
+      border: 1px solid #ddd;
+      border-radius: 10px;
+      padding: 10px;
+      resize: vertical;
+      font: inherit;
+    }
+    .chips {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+      margin-top: 10px;
+    }
+    .chip {
+      background: #ecece8;
+      border-radius: 999px;
+      padding: 8px 12px;
+      font-size: 0.92rem;
+    }
+    .score-item {
+      padding: 8px 0;
+      border-bottom: 1px solid #eee;
+      display: flex;
+      justify-content: space-between;
+      gap: 12px;
+    }
+    .score-item:last-child { border-bottom: 0; }
+    pre {
+      margin: 0;
+      white-space: pre-wrap;
+      word-break: break-word;
+      background: #111;
+      color: #eee;
+      border-radius: 10px;
+      padding: 12px;
+      overflow: auto;
+      font-size: 0.9rem;
+    }
+    .status {
+      margin-top: 10px;
+      color: #555;
+      min-height: 1.2em;
+    }
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <div class="card">
+      <h1>Artisan Image Tagger</h1>
+      <p class="muted">Tiny browser prototype: upload one product image, score it against candidate labels, then generate compact tags and a short catalog description. Grimly efficient.</p>
+    </div>
+
+    <div class="row">
+      <div class="card">
+        <h2>1. Image</h2>
+        <div class="preview">
+          <img id="preview" alt="Selected product image" />
+          <div id="placeholder" class="placeholder">No image selected</div>
+        </div>
+        <div class="controls">
+          <input id="imageInput" type="file" accept="image/*" />
+          <button id="analyzeBtn" disabled>Analyze</button>
+        </div>
+        <div id="status" class="status">Waiting for model.</div>
+      </div>
+
+      <div class="card">
+        <h2>2. Candidate labels</h2>
+        <p class="muted">One label per line. Keep them short and concrete.</p>
+        <textarea id="labelsInput">ceramic vase
+ceramic mug
+crochet bag
+fabric bag
+embroidered towel
+table runner
+beaded necklace
+bracelet
+wood decor
+basket
+gift item
+office decor
+rustic style
+minimalist style
+colorful style
+floral pattern</textarea>
+      </div>
+    </div>
+
+    <div class="row">
+      <div class="card">
+        <h2>3. Top matches</h2>
+        <div id="scores"></div>
+      </div>
+
+      <div class="card">
+        <h2>4. Generated tags</h2>
+        <div id="tags" class="chips"></div>
+        <h3 style="margin-top:18px;">Short description</h3>
+        <p id="description" class="muted">Nothing yet.</p>
+      </div>
+    </div>
+
+    <div class="card">
+      <h2>5. Structured output</h2>
+      <pre id="jsonOutput">{}</pre>
+    </div>
+  </div>
+
+  <script type="module">
+    import {
+      AutoProcessor,
+      AutoModelForVision2Seq,
+      RawImage
+    } from "https://cdn.jsdelivr.net/npm/@huggingface/transformers@4.0.0-next.9";
+
+    const imageInput = document.getElementById('imageInput');
+    const analyzeBtn = document.getElementById('analyzeBtn');
+    const preview = document.getElementById('preview');
+    const placeholder = document.getElementById('placeholder');
+    const scoresEl = document.getElementById('scores');
+    const tagsEl = document.getElementById('tags');
+    const descriptionEl = document.getElementById('description');
+    const jsonOutputEl = document.getElementById('jsonOutput');
+    const statusEl = document.getElementById('status');
+
+    let processor = null;
+    let model = null;
+    let imageReady = false;
+    let currentImageDataUrl = null;
+
+    const MODEL_ID = "HuggingFaceTB/SmolVLM-500M-Instruct";
+
+    function setStatus(text) {
+      statusEl.textContent = text;
+    }
+
+    function clearResults() {
+      scoresEl.innerHTML = "";
+      tagsEl.innerHTML = "";
+      descriptionEl.textContent = "Nothing yet.";
+      jsonOutputEl.textContent = "{}";
+    }
+
+    function addTag(text) {
+      const span = document.createElement("span");
+      span.className = "chip";
+      span.textContent = text;
+      tagsEl.appendChild(span);
+    }
+
+    function deriveTagsFromText(text) {
+      const t = text.toLowerCase();
+      const tags = new Set();
+
+      const pairs = [
+        ["vase", "vase"],
+        ["mug", "mug"],
+        ["cup", "mug"],
+        ["bag", "bag"],
+        ["necklace", "necklace"],
+        ["bracelet", "bracelet"],
+        ["basket", "basket"],
+        ["towel", "towel"],
+        ["runner", "table runner"],
+        ["ceramic", "ceramic"],
+        ["crochet", "crochet"],
+        ["fabric", "fabric"],
+        ["embroidered", "embroidered"],
+        ["beaded", "beaded"],
+        ["wood", "wood"],
+        ["rustic", "rustic"],
+        ["minimalist", "minimalist"],
+        ["colorful", "colorful"],
+        ["floral", "floral"]
+      ];
+
+      for (const [needle, tag] of pairs) {
+        if (t.includes(needle)) tags.add(tag);
+      }
+
+      if (tags.has("vase") || tags.has("wood")) tags.add("decor");
+      if (tags.has("mug")) tags.add("kitchen");
+      if (tags.has("bag") || tags.has("necklace") || tags.has("bracelet")) tags.add("accessory");
+      if (tags.has("crochet") || tags.has("embroidered") || tags.has("beaded")) tags.add("handmade");
+
+      return Array.from(tags);
+    }
+
+    async function dataUrlToRawImage(dataUrl) {
+      const img = await RawImage.fromURL(dataUrl);
+      return img;
+    }
+
+    async function initModel() {
+      try {
+        if (!navigator.gpu) {
+          setStatus("WebGPU not available in this browser.");
+          return;
+        }
+
+        setStatus("Loading processor...");
+        processor = await AutoProcessor.from_pretrained(MODEL_ID);
+
+        setStatus("Loading SmolVLM-500M...");
+        model = await AutoModelForVision2Seq.from_pretrained(MODEL_ID, {
+          dtype: {
+            embed_tokens: "fp16",
+            vision_encoder: "q4",
+            decoder_model_merged: "q4",
+          },
+          device: "webgpu",
+        });
+
+        setStatus("Model loaded. Choose an image.");
+        analyzeBtn.disabled = !imageReady;
+      } catch (err) {
+        console.error(err);
+        setStatus("Could not load SmolVLM. Try Chrome/Edge with WebGPU enabled.");
+      }
+    }
+
+    async function describeImage(rawImage, instruction) {
+      const messages = [
+        {
+          role: "user",
+          content: [
+            { type: "image" },
+            { type: "text", text: instruction }
+          ]
+        }
+      ];
+
+      const prompt = processor.apply_chat_template(messages, {
+        add_generation_prompt: true,
+      });
+
+      const inputs = await processor(prompt, [rawImage], {
+        do_image_splitting: false,
+      });
+
+      const generatedIds = await model.generate({
+        ...inputs,
+        max_new_tokens: 60,
+      });
+
+      const decoded = processor.batch_decode(
+        generatedIds.slice(null, [inputs.input_ids.dims.at(-1), null]),
+        { skip_special_tokens: true }
+      );
+
+      return decoded[0].trim();
+    }
+
+    imageInput.addEventListener("change", (event) => {
+      const file = event.target.files?.[0];
+      clearResults();
+      imageReady = false;
+      currentImageDataUrl = null;
+      analyzeBtn.disabled = true;
+
+      if (!file) {
+        preview.style.display = "none";
+        placeholder.style.display = "block";
+        return;
+      }
+
+      const reader = new FileReader();
+
+      reader.onload = () => {
+        currentImageDataUrl = reader.result;
+        preview.src = currentImageDataUrl;
+        preview.style.display = "block";
+        placeholder.style.display = "none";
+      };
+
+      preview.onload = () => {
+        imageReady = true;
+        analyzeBtn.disabled = !(processor && model);
+      };
+
+      reader.onerror = () => {
+        setStatus("Could not read the image file.");
+      };
+
+      reader.readAsDataURL(file);
+    });
+
+    analyzeBtn.addEventListener("click", async () => {
+      if (!processor || !model || !imageReady || !currentImageDataUrl) return;
+
+      clearResults();
+      setStatus("Generating description...");
+
+      try {
+        const rawImage = await dataUrlToRawImage(currentImageDataUrl);
+
+        const instruction =
+          "Describe this product in one short sentence for an online catalog. Mention only visible attributes. Do not guess brand, price, dimensions, or hidden materials.";
+
+        const description = await describeImage(rawImage, instruction);
+        descriptionEl.textContent = description;
+
+        // Optional: show the raw generated description in the 'Top matches' area
+        scoresEl.innerHTML = `<div class="score-item"><span>Generated text</span><strong>done</strong></div>`;
+
+        const tags = deriveTagsFromText(description);
+        tags.forEach(addTag);
+
+        const payload = {
+          imageName: imageInput.files?.[0]?.name || null,
+          description,
+          tags,
+        };
+
+        jsonOutputEl.textContent = JSON.stringify(payload, null, 2);
+        setStatus("Done.");
+      } catch (err) {
+        console.error(err);
+        setStatus("Generation failed. Try a smaller image or a browser with better WebGPU support.");
+      }
+    });
+
+    initModel();
+  </script>  
+</body>
+</html>
