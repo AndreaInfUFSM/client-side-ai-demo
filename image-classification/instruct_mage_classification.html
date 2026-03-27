@@ -299,17 +299,17 @@ floral pattern</textarea>
         setStatus("Loading processor...");
         processor = await AutoProcessor.from_pretrained(MODEL_ID);
 
-        if (typeof navigator !== "undefined" && "gpu" in navigator) {
-          try {
-            model = await loadModelWebGPU();
-            backendUsed = "webgpu";
-            setStatus("Model loaded with WebGPU. Choose an image.");
-            analyzeBtn.disabled = !imageReady;
-            return;
-          } catch (err) {
-            console.warn("WebGPU load failed. Falling back to WASM.", err);
-          }
-        }
+        // if (typeof navigator !== "undefined" && "gpu" in navigator) {
+        //   try {
+        //     model = await loadModelWebGPU();
+        //     backendUsed = "webgpu";
+        //     setStatus("Model loaded with WebGPU. Choose an image.");
+        //     analyzeBtn.disabled = !imageReady;
+        //     return;
+        //   } catch (err) {
+        //     console.warn("WebGPU load failed. Falling back to WASM.", err);
+        //   }
+        // }
 
         model = await loadModelWasm();
         backendUsed = "wasm";
