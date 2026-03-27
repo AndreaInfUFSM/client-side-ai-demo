@@ -192,6 +192,262 @@ floral pattern</textarea>
       RawImage
     } from "https://cdn.jsdelivr.net/npm/@huggingface/transformers@4.0.0-next.9";
 
+    const imageInput = document.getElementById("imageInput");
+    const analyzeBtn = document.getElementById("analyzeBtn");
+    const preview = document.getElementById("preview");
+    const placeholder = document.getElementById("placeholder");
+    const scoresEl = document.getElementById("scores");
+    const tagsEl = document.getElementById("tags");
+    const descriptionEl = document.getElementById("description");
+    const jsonOutputEl = document.getElementById("jsonOutput");
+    const statusEl = document.getElementById("status");
+
+    let processor = null;
+    let model = null;
+    let imageReady = false;
+    let currentImageDataUrl = null;
+    let backendUsed = null;
+
+    const MODEL_ID = "HuggingFaceTB/SmolVLM-500M-Instruct";
+
+    function setStatus(text) {
+      statusEl.textContent = text;
+    }
+
+    function clearResults() {
+      scoresEl.innerHTML = "";
+      tagsEl.innerHTML = "";
+      descriptionEl.textContent = "Nothing yet.";
+      jsonOutputEl.textContent = "{}";
+    }
+
+    function addTag(text) {
+      const span = document.createElement("span");
+      span.className = "chip";
+      span.textContent = text;
+      tagsEl.appendChild(span);
+    }
+
+    function deriveTagsFromText(text) {
+      const t = text.toLowerCase();
+      const tags = new Set();
+
+      const pairs = [
+        ["vase", "vase"],
+        ["mug", "mug"],
+        ["cup", "mug"],
+        ["bag", "bag"],
+        ["necklace", "necklace"],
+        ["bracelet", "bracelet"],
+        ["basket", "basket"],
+        ["towel", "towel"],
+        ["runner", "table runner"],
+        ["ceramic", "ceramic"],
+        ["crochet", "crochet"],
+        ["fabric", "fabric"],
+        ["embroidered", "embroidered"],
+        ["beaded", "beaded"],
+        ["wood", "wood"],
+        ["rustic", "rustic"],
+        ["minimalist", "minimalist"],
+        ["colorful", "colorful"],
+        ["floral", "floral"]
+      ];
+
+      for (const [needle, tag] of pairs) {
+        if (t.includes(needle)) tags.add(tag);
+      }
+
+      if (tags.has("vase") || tags.has("wood")) tags.add("decor");
+      if (tags.has("mug")) tags.add("kitchen");
+      if (tags.has("bag") || tags.has("necklace") || tags.has("bracelet")) tags.add("accessory");
+      if (tags.has("crochet") || tags.has("embroidered") || tags.has("beaded")) tags.add("handmade");
+
+      return Array.from(tags);
+    }
+
+    async function dataUrlToRawImage(dataUrl) {
+      return await RawImage.fromURL(dataUrl);
+    }
+
+    async function loadModelWebGPU() {
+      setStatus("Loading SmolVLM with WebGPU...");
+
+      return await AutoModelForVision2Seq.from_pretrained(MODEL_ID, {
+        dtype: {
+          embed_tokens: "fp16",
+          vision_encoder: "q4",
+          decoder_model_merged: "q4",
+        },
+        device: "webgpu",
+      });
+    }
+
+    async function loadModelWasm() {
+      setStatus("Loading SmolVLM with WASM/CPU fallback...");
+
+      return await AutoModelForVision2Seq.from_pretrained(MODEL_ID, {
+        dtype: "q4",
+      });
+    }
+
+    async function initModel() {
+      analyzeBtn.disabled = true;
+
+      try {
+        setStatus("Loading processor...");
+        processor = await AutoProcessor.from_pretrained(MODEL_ID);
+
+        if (typeof navigator !== "undefined" && "gpu" in navigator) {
+          try {
+            model = await loadModelWebGPU();
+            backendUsed = "webgpu";
+            setStatus("Model loaded with WebGPU. Choose an image.");
+            analyzeBtn.disabled = !imageReady;
+            return;
+          } catch (err) {
+            console.warn("WebGPU load failed. Falling back to WASM.", err);
+          }
+        }
+
+        model = await loadModelWasm();
+        backendUsed = "wasm";
+        setStatus("Model loaded with WASM/CPU fallback. It may be slower.");
+        analyzeBtn.disabled = !imageReady;
+      } catch (err) {
+        console.error(err);
+        setStatus("Could not load SmolVLM.");
+      }
+    }
+
+    async function describeImage(rawImage, instruction) {
+      const messages = [
+        {
+          role: "user",
+          content: [
+            { type: "image" },
+            { type: "text", text: instruction }
+          ]
+        }
+      ];
+
+      const prompt = processor.apply_chat_template(messages, {
+        add_generation_prompt: true,
+      });
+
+      console.log(prompt);
+
+      const inputs = await processor(prompt, [rawImage], {
+        do_image_splitting: false,
+      });
+
+      console.log(inputs);
+      
+      const generatedIds = await model.generate({
+        ...inputs,
+        max_new_tokens: backendUsed === "wasm" ? 24 : 40,
+        do_sample: false,
+        repetition_penalty: 1.2,
+      });
+
+      const promptLength = inputs.input_ids.dims.at(-1);
+      const newTokens = generatedIds.slice(null, [promptLength, null]);
+
+      const decoded = processor.batch_decode(newTokens, {
+        skip_special_tokens: true,
+      });
+
+      return decoded[0].trim();
+    }
+
+    imageInput.addEventListener("change", (event) => {
+      const file = event.target.files?.[0];
+      clearResults();
+      imageReady = false;
+      currentImageDataUrl = null;
+      analyzeBtn.disabled = true;
+
+      if (!file) {
+        preview.style.display = "none";
+        placeholder.style.display = "block";
+        return;
+      }
+
+      const reader = new FileReader();
+
+      reader.onload = () => {
+        currentImageDataUrl = reader.result;
+        preview.src = currentImageDataUrl;
+        preview.style.display = "block";
+        placeholder.style.display = "none";
+      };
+
+      preview.onload = () => {
+        imageReady = true;
+        analyzeBtn.disabled = !(processor && model);
+      };
+
+      reader.onerror = () => {
+        setStatus("Could not read the image file.");
+      };
+
+      reader.readAsDataURL(file);
+    });
+
+    analyzeBtn.addEventListener("click", async () => {
+      if (!processor || !model || !imageReady || !currentImageDataUrl) return;
+
+      clearResults();
+      setStatus(`Generating description with ${backendUsed}...`);
+
+      try {
+        const rawImage = await dataUrlToRawImage(currentImageDataUrl);
+
+        const instruction =
+          "One short catalog sentence only. Format: [product type] with [visible material/texture] and [visible color/style].";
+
+        const description = await describeImage(rawImage, instruction);
+        descriptionEl.textContent = description;
+
+        scoresEl.innerHTML = `
+          <div class="score-item">
+            <span>Backend</span>
+            <strong>${backendUsed}</strong>
+          </div>
+          <div class="score-item">
+            <span>Generated text</span>
+            <strong>done</strong>
+          </div>
+        `;
+
+        const tags = deriveTagsFromText(description);
+        tags.forEach(addTag);
+
+        const payload = {
+          imageName: imageInput.files?.[0]?.name || null,
+          backend: backendUsed,
+          description,
+          tags,
+        };
+
+        jsonOutputEl.textContent = JSON.stringify(payload, null, 2);
+        setStatus(`Done with ${backendUsed}.`);
+      } catch (err) {
+        console.error(err);
+        setStatus(`Generation failed on ${backendUsed}. Try a smaller image.`);
+      }
+    });
+
+    initModel();
+  </script>
+
+  <!-- <script type="module">
+    import {
+      AutoProcessor,
+      AutoModelForVision2Seq,
+      RawImage
+    } from "https://cdn.jsdelivr.net/npm/@huggingface/transformers@4.0.0-next.9";
+
     const imageInput = document.getElementById('imageInput');
     const analyzeBtn = document.getElementById('analyzeBtn');
     const preview = document.getElementById('preview');
@@ -420,6 +676,6 @@ floral pattern</textarea>
     });
 
     initModel();
-  </script>  
+  </script>   -->
 </body>
 </html>
