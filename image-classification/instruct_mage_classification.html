@@ -274,11 +274,12 @@ floral pattern</textarea>
       setStatus("Loading SmolVLM with WebGPU...");
 
       return await AutoModelForVision2Seq.from_pretrained(MODEL_ID, {
-        dtype: {
-          embed_tokens: "fp16",
-          vision_encoder: "q4",
-          decoder_model_merged: "q4",
-        },
+        // dtype: {
+        //   embed_tokens: "fp16",
+        //   vision_encoder: "q4",
+        //   decoder_model_merged: "q4",
+        // },
+        dtype: "fp16",
         device: "webgpu",
       });
     }
@@ -342,7 +343,7 @@ floral pattern</textarea>
       });
 
       console.log(inputs);
-      
+
       const generatedIds = await model.generate({
         ...inputs,
         max_new_tokens: backendUsed === "wasm" ? 24 : 40,
