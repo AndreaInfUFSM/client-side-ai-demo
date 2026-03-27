@@ -319,13 +319,28 @@ floral pattern</textarea>
 
       const generatedIds = await model.generate({
         ...inputs,
-        max_new_tokens: 60,
+        max_new_tokens: 40,
+        do_sample: false,
+        repetition_penalty: 1.2,
       });
 
-      const decoded = processor.batch_decode(
-        generatedIds.slice(null, [inputs.input_ids.dims.at(-1), null]),
-        { skip_special_tokens: true }
-      );
+      const promptLength = inputs.input_ids.dims.at(-1);
+
+      // Keep only newly generated tokens
+      const newTokens = generatedIds.slice(null, [promptLength, null]);
+
+      const decoded = processor.batch_decode(newTokens, {
+        skip_special_tokens: true,
+      });      
+      // const generatedIds = await model.generate({
+      //   ...inputs,
+      //   max_new_tokens: 60,
+      // });
+
+      // const decoded = processor.batch_decode(
+      //   generatedIds.slice(null, [inputs.input_ids.dims.at(-1), null]),
+      //   { skip_special_tokens: true }
+      // );
 
       return decoded[0].trim();
     }
@@ -374,7 +389,8 @@ floral pattern</textarea>
         const rawImage = await dataUrlToRawImage(currentImageDataUrl);
 
         const instruction =
-          "Describe this product in one short sentence for an online catalog. Mention only visible attributes. Do not guess brand, price, dimensions, or hidden materials.";
+          "One short catalog sentence only. Format: [product type] with [visible material/texture] and [visible color/style].";
+          // "Describe this product in one short sentence for an online catalog. Mention only visible attributes. Do not guess brand, price, dimensions, or hidden materials.";
 
         const description = await describeImage(rawImage, instruction);
         descriptionEl.textContent = description;
